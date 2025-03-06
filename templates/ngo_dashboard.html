@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">NGO Dashboard</h2>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header bg-dark">
+                <h3 class="card-title mb-0">Active Orders</h3>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover order-table">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Donor Name</th>
+                                <th>Date Time</th>
+                                <th>Destination</th>
+                                <th>Quantity</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for donation in donations %}
+                            <tr>
+                                <td>#{{ donation.id }}</td>
+                                <td>{{ donation.donor_name }}</td>
+                                <td>{{ donation.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ donation.donor_address }}</td>
+                                <td>{{ donation.quantity }}</td>
+                                <td>
+                                    <span class="status-badge status-{{ donation.status.lower() }}">
+                                        {{ donation.status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if donation.status == 'available' %}
+                                        <button class="btn btn-sm btn-primary" onclick="acceptDonation({{ donation.id }})">
+                                            Accept
+                                        </button>
+                                    {% elif donation.status == 'accepted' %}
+                                        <button class="btn btn-sm btn-success" onclick="markAsPickedUp({{ donation.id }})">
+                                            Picked Up
+                                        </button>
+
+                                    {% elif donation.status == 'picked_up' %}
+                                        
+                                        <button class="btn btn-sm btn-warning" onclick="sendRequestToReceivers(
+                                            '{{ donation.id }}',
+                                            '{{ current_user.name }}',
+                                            '{{ donation.food_type }}',
+                                            '{{ donation.quantity }}'
+                                        )">
+                                            Find Receivers
+                                        </button>
+                                    {% endif %}
+                                    <button class="btn btn-sm btn-secondary" onclick="showRoute(
+                                        {{ current_user.latitude }}, 
+                                        {{ current_user.longitude }}, 
+                                        {{ donation.latitude }}, 
+                                        {{ donation.longitude }}
+                                    )">Track</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Leaflet.js Map Section -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-dark">
+                <h3 class="card-title mb-0">Live Tracking</h3>
+            </div>
+            <div class="card-body">
+                <div class="map-container">
+                    <div id="map" style="height: 500px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Receivers Modal -->
+<div class="modal fade" id="receiversModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Available Receivers</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="receiversList">
+                    <!-- Receivers will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Leaflet.js & Custom JavaScript -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-routing-machine/3.2.12/leaflet-routing-machine.min.js"></script>
+
+<style>
+    /* Styling for the Routing Panel */
+    .leaflet-routing-container {
+        background-color: #333 !important; /* Darker background */
+        color: #fff !important; /* White text */
+        font-weight: bold;
+        border-radius: 8px;
+        padding: 10px;
+    }
+
+    .leaflet-routing-container a {
+        color: #f39c12 !important; /* Orange links */
+    }
+
+    /* Custom Route Line */
+    .leaflet-routing-alt {
+        background-color: rgba(0, 0, 0, 0.8) !important; /* Dark overlay */
+        color: #ffffff !important;
+        border-radius: 5px;
+        padding: 5px;
+    }
+
+    /* Waypoint Markers */
+    .leaflet-marker-icon {
+        background-color: #007bff !important; /* Bright blue markers */
+        border-radius: 50%;
+        border: 3px solid white;
+    }
+</style>
+
+<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let map = L.map('map').setView([{{ current_user.latitude }}, {{ current_user.longitude }}], 13);
+
+    // Load OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Add NGO location marker
+    L.marker([{{ current_user.latitude }}, {{ current_user.longitude }}])
+        .addTo(map)
+        .bindPopup("Your Location");
+
+    {% for donation in donations %}
+        L.marker([{{ donation.latitude }}, {{ donation.longitude }}])
+            .addTo(map)
+            .bindPopup('Order #{{ donation.id }} - {{ donation.food_type }}');
+    {% endfor %}
+
+    let donationIcon = L.icon({
+        iconUrl: 'https://cdn-icons-png.flaticon.com/512/535/535239.png', // Custom donation icon
+        iconSize: [35, 35],
+        iconAnchor: [17, 35],
+        popupAnchor: [0, -30]
+    });
+    
+    let fixedLocations = [
+        { lat: 18.5246, lng: 73.8577, label: "Dengle bridge" },
+        { lat: 18.5284, lng: 73.8739, label: "Pune Junction" },
+        { lat: 18.4770, lng: 73.8906, label: "Kondhwa" },
+        { lat: 18.5010, lng: 73.8626, label: "Swargate" },
+        { lat: 18.5195, lng: 73.8553, label: "Shaniwarwada" },
+        { lat: 18.5174, lng: 73.8553, label: "Budhwar Peth" }
+    ];
+
+    fixedLocations.forEach(location => {
+        let marker = L.marker([location.lat, location.lng], { icon: donationIcon }).addTo(map);
+        marker.on("click", function() {
+            showRoute({{ current_user.latitude }}, {{ current_user.longitude }}, location.lat, location.lng);
+        });
+
+    });
+
+
+
+
+    let routeControl;
+
+    window.showRoute = function(startLat, startLng, endLat, endLng) {
+        // Remove existing route if present
+        if (routeControl) {
+            map.removeControl(routeControl);
+        }
+
+        routeControl = L.Routing.control({
+            waypoints: [
+                L.latLng(startLat, startLng),
+                L.latLng(endLat, endLng)
+            ],
+            routeWhileDragging: true,
+            createMarker: function(i, waypoint, n) {
+                return L.marker(waypoint.latLng, {
+                    icon: L.divIcon({
+                        className: 'leaflet-marker-icon',
+                        html: `<div style="background-color: #ff4757; width: 12px; height: 12px; border-radius: 50%;"></div>`,
+                        iconSize: [12, 12]
+                    })
+                }).bindPopup(i === 0 ? "Start" : "Destination");
+            },
+            lineOptions: {
+                styles: [{ color: '#28a745', opacity: 0.9, weight: 5 }] // Green route line
+            }
+        }).addTo(map);
+    };
+
+    
+
+
+});
+
+const socket = io.connect(`${window.location.protocol}//${window.location.host}`);
+
+    function sendRequestToReceivers(donationId, ngoName, foodType, quantity) {
+    console.log("Sending request to receivers...");
+    socket.emit("food_request", {
+        donation_id: donationId,
+        ngo_name: ngoName,
+        food_type: foodType,
+        quantity: quantity
+    });
+}
+
+
+    socket.on("accept_notify", function(data) {
+        console.log("Receiver Accepts Donation", data);
+        showNotification('Receiver Accepted Donation Successfully. Set Route Using Track Button', 'success');
+    });
+
+
+    socket.onerror = function(error) {
+        console.error("WebSocket error:", error);
+    };
+
+    socket.onclose = function() {
+        console.log("WebSocket connection closed.");
+    };
+</script>
+{% endblock %}

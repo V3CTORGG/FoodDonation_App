@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">Receiver Dashboard</h2>
+
+<div class="row">
+    <div class="col-md-6">
+        <h3>Assigned Donations</h3>
+        {% for donation in donations %}
+            <div class="card donation-card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ donation.food_type }}</h5>
+                    <p class="card-text">
+                        <strong>Quantity:</strong> {{ donation.quantity }}<br>
+                        <strong>NGO:</strong> {{ User.query.get(donation.assigned_ngo_id).name }}<br>
+                        <strong>Status:</strong> {{ donation.status }}
+                    </p>
+                    <button class="btn btn-secondary" onclick="showRoute(
+                        {{ current_user.latitude }}, 
+                        {{ current_user.longitude }}, 
+                        {{ donation.latitude }}, 
+                        {{ donation.longitude }}
+                    )">Show Route</button>
+                </div>
+            </div>
+        {% else %}
+            <p>No assigned donations at the moment.</p>
+        {% endfor %}
+    </div>
+    <div class="col-md-6">
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Request Modal -->
+<div class="modal fade" id="requestModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New Food Donation Request</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="requestDetails"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="respondToRequest(false)">Decline</button>
+                <button type="button" class="btn btn-primary" onclick="respondToRequest(true)">Accept</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.0/socket.io.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initMap({{ current_user.latitude }}, {{ current_user.longitude }});
+    addMarker({{ current_user.latitude }}, {{ current_user.longitude }}, 'Your Location');
+
+    {% for donation in donations %}
+        addMarker({{ donation.latitude }}, {{ donation.longitude }}, '{{ donation.food_type }}');
+    {% endfor %}
+
+    // Initialize WebSocket Connection
+    const socket = io.connect(`${window.location.protocol}//${window.location.host}`);
+
+    // Handle WebSocket Errors
+    socket.onerror = function(error) {
+        console.error("WebSocket error:", error);
+    };
+
+    socket.onclose = function() {
+        console.log("WebSocket connection closed.");
+    };
+
+    // Listen for New Food Requests
+    socket.on("new_food_request", function(data) {
+        console.log("📩 New food request received:", data);
+        showDonationRequest(data);
+    });
+
+    function showDonationRequest(data) {
+        const requestDetails = document.getElementById('requestDetails');
+        requestDetails.innerHTML = `
+            <p><strong>NGO:</strong> ${data.ngo_name}</p>
+            <p><strong>Food Type:</strong> ${data.food_type}</p>
+            <p><strong>Quantity:</strong> ${data.quantity}</p>
+        `;
+
+        const modal = new bootstrap.Modal(document.getElementById('requestModal'));
+        modal.show();
+
+        // Store request data for response
+        window.currentRequestData = data;
+    }
+    window.respondToRequest = function(accepted) {
+    if (!window.currentRequestData) return;
+
+    socket.emit("receiver_response", {
+        donation_id: window.currentRequestData.donation_id,
+        accepted: accepted
+    });
+    console.log("Request sent back to Sender");
+    bootstrap.Modal.getInstance(document.getElementById('requestModal')).hide();
+};
+   // 📌 ADD THE FOLLOWING CODE HERE
+    // Listen for donation update after receiver's response
+    socket.on("donation_updated", function(data) {
+        console.log(`✅ Donation ${data.donation_id} updated to: ${data.status}`);
+        showNotification(`Donation ${data.donation_id} is now assigned`, "success");
+        setTimeout(() => location.reload(), 1500);
+    });
+
+    // Listen for donation decline notification
+    socket.on("donation_declined", function(data) {
+        console.log(`❌ Donation ${data.donation_id} was declined.`);
+        showNotification("You declined the request", "info");
+    });
+
+
+});
+
+
+</script>
+{% endblock %}

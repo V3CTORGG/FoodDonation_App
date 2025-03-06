@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="auth-container">
+    <h2 class="text-center mb-4">Register</h2>
+    <form method="POST" action="{{ url_for('routes.register') }}" onsubmit="return validateForm()">
+        <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="email" name="email" required>
+        </div>
+        <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" name="password" required>
+        </div>
+        <div class="mb-3">
+            <label for="user_type" class="form-label">User Type</label>
+            <select class="form-select" id="user_type" name="user_type" required onchange="toggleUploadSection()">
+                <option value="ngo">NGO</option>
+                <option value="receiver">Receiver (Orphanage/Shelter)</option>
+            </select>
+        </div>
+        <div class="upload-container" id="uploadSection" style="display: none;">
+            <h3 class="upload-title">Upload Registration Certificate (PDF Only)</h3>
+            <label for="pdfUpload" class="custom-file-upload">
+                <i class="fas fa-cloud-upload-alt"></i> Choose File
+            </label>
+            <input type="file" id="pdfUpload" accept="application/pdf" class="file-input">
+            <button type="button" class="upload-btn" onclick="uploadFile()">Upload</button>
+            <div id="message" class="message"></div>
+            <div id="error" class="error"></div>
+        </div>
+        <div class="mb-3">
+            <label for="name" class="form-label">Organization Name</label>
+            <input type="text" class="form-control" id="name" name="name" required>
+        </div>
+        <div class="mb-3">
+            <label for="registration_number" class="form-label">Registration Number</label>
+            <input type="text" class="form-control" id="registration_number" name="registration_number" 
+                   pattern="^[A-Za-z]{2}(19|20)\d{2}\d{6}$" 
+                   title="Format: 2 alphabets, followed by the 4-digit year, and a 6-digit unique code (e.g., AB2023123456)" 
+                   required>
+        </div>
+        <div class="mb-3">
+            <label for="address" class="form-label">Address</label>
+            <input type="text" class="form-control" id="address" name="address" required>
+        </div>
+        <div class="mb-3">
+            <label for="phone" class="form-label">Phone Number</label>
+            <input type="tel" class="form-control" id="phone" name="phone" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Register</button>
+    </form>
+    <div class="text-center mt-3">
+        <a href="{{ url_for('routes.login') }}">Already have an account? Login</a>
+    </div>
+</div>
+
+<style>
+    .upload-container {
+        background: #f9f9f9;
+        padding: 30px;
+        border-radius: 15px;
+        margin-top: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        text-align: center;
+    }
+    .upload-title {
+        font-size: 1.4rem;
+        margin-bottom: 15px;
+        color: #333;
+    }
+    .custom-file-upload {
+        display: inline-block;
+        padding: 12px 25px;
+        cursor: pointer;
+        background-color: #007bff;
+        color: #fff;
+        border-radius: 8px;
+        transition: background 0.3s ease;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+    .custom-file-upload:hover {
+        background-color: #0056b3;
+    }
+    .file-input {
+        display: none;
+    }
+    .upload-btn {
+        background-color: #28a745;
+        color: white;
+        padding: 12px 20px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        margin-top: 15px;
+        transition: background 0.3s ease;
+    }
+    .upload-btn:hover {
+        background-color: #1e7e34;
+    }
+    .message {
+        margin-top: 10px;
+        color: green;
+        font-weight: bold;
+    }
+    .error {
+        margin-top: 10px;
+        color: red;
+        font-weight: bold;
+    }
+</style>
+
+<script>
+  function toggleUploadSection() {
+    const userType = document.getElementById('user_type').value;
+    const uploadSection = document.getElementById('uploadSection');
+    uploadSection.style.display = userType === 'ngo' ? 'block' : 'none';
+  }
+
+  function uploadFile() {
+    const fileInput = document.getElementById('pdfUpload');
+    const messageDiv = document.getElementById('message');
+    const errorDiv = document.getElementById('error');
+
+    messageDiv.textContent = '';
+    errorDiv.textContent = '';
+
+    const file = fileInput.files[0];
+
+    if (!file) {
+      errorDiv.textContent = 'Please select a file to upload.';
+      return;
+    }
+
+    if (file.type !== 'application/pdf') {
+      errorDiv.textContent = 'Invalid file format. Please upload a PDF.';
+      return;
+    }
+
+    messageDiv.textContent = `File "${file.name}" uploaded successfully!`;
+  }
+
+  function validateForm() {
+    const requiredFields = document.querySelectorAll('input[required], select[required]');
+    for (let field of requiredFields) {
+      if (!field.value.trim()) {
+        alert(`Please fill out the ${field.previousElementSibling.textContent} field.`);
+        field.focus();
+        return false;
+      }
+    }
+    return true;
+  }
+</script>
+
+{% endblock %}

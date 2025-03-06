@@ -1,0 +1,113 @@
+:root {
+    --primary-accent: #69247C;
+    --secondary-accent: #DA498D;
+    --primary-action: #FAC67A;
+    --secondary-action: #F9E6CF;
+}
+
+
+
+.map-container {
+    height: 400px;
+    margin: 20px 0;
+    border: 2px solid var(--primary-accent);
+    border-radius: 8px;
+}
+
+#map {
+    height: 400px;
+    width: 100%;
+    border-radius: 8px;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+
+#toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+}
+
+.donation-card {
+    margin-bottom: 1rem;
+    transition: transform 0.2s;
+    border-color: var(--primary-accent);
+}
+
+.donation-card:hover {
+    transform: translateY(-2px);
+}
+
+.form-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.auth-container {
+    max-width: 400px;
+    margin: 40px auto;
+    padding: 20px;
+}
+
+.btn-primary {
+    background-color: var(--primary-accent);
+    border-color: var(--primary-accent);
+}
+
+.btn-primary:hover {
+    background-color: var(--secondary-accent);
+    border-color: var(--secondary-accent);
+}
+
+.btn-secondary {
+    background-color: var(--secondary-accent);
+    border-color: var(--secondary-accent);
+}
+
+.status-badge {
+    padding: 0.5em 1em;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.status-accepted {
+    background-color: var(--primary-accent);
+    color: white;
+}
+
+.status-preparing {
+    background-color: var(--secondary-accent);
+    color: white;
+}
+
+.status-delivered {
+    background-color: var(--primary-action);
+    color: black;
+}
+
+.status-failed {
+    background-color: #dc3545;
+    color: white;
+}
+
+.order-table {
+    margin-top: 20px;
+}
+
+.order-table th {
+    background-color: var(--primary-accent);
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .map-container {
+        height: 300px;
+    }
+
+    .form-container,
+    .auth-container {
+        padding: 10px;
+    }
+}
